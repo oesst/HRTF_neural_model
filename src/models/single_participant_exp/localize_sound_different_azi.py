@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from src.data import generateData
 from src.features import helpers as hp
-# from src.visualization import helpers as hpVis
+from src.visualization import helpers as hpVis
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
@@ -48,9 +48,8 @@ def process_inputs(psd_all_i, psd_all_c, ear='ipsi', normalization_type='sum_1',
     return psd_mono, psd_mono_mean, psd_binaural, psd_binaural_mean
 
 
-def main(model_name='single_participant', exp_name='single_participant_default'):
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
+def main(model_name='single_participant', exp_name='single_participant_different_azis'):
+    """ Localizes sounds at azimuth 'azimuth' with a learned map at azimuth 0 with a single ear
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
@@ -72,10 +71,10 @@ def main(model_name='single_participant', exp_name='single_participant_default')
     # use the mean subtracted map as the learned map
     mean_subtracted_map = True
 
+    # choose which ear to use 'contra' or 'ipsi'
     ear = 'ipsi'
-    ######################################
 
-    # create unique experiment name
+    ######################################
     exp_name_str = exp_name + '_' + normalization_type + str(sigma_smoothing) + str(sigma_gauss_norm) + str(mean_subtracted_map) + '_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
         int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
 
@@ -93,14 +92,29 @@ def main(model_name='single_participant', exp_name='single_participant_default')
         exp_path.mkdir(parents=True, exist_ok=True)
         # create or read the data
         psd_all_c, psd_all_i = generateData.create_data(
+            freq_bands, participant_number, snr, normalize, 12, time_window)
+
+        ####### Map Learning #######
+
+        # filter data and integrate it for map learning
+        psd_mono, psd_mono_mean, psd_binaural, psd_binaural_mean = process_inputs(
+            psd_all_i, psd_all_c, ear, normalization_type, sigma_smoothing, sigma_gauss_norm)
+
+        # create map from defined processed data
+        learned_map = hp.create_map(psd_binaural, mean_subtracted_map)
+
+        ####### Input Processing #######
+
+        # process data for actual input
+        psd_all_c, psd_all_i = generateData.create_data(
             freq_bands, participant_number, snr, normalize, azimuth, time_window)
 
         # filter data and integrate it
         psd_mono, psd_mono_mean, psd_binaural, psd_binaural_mean = process_inputs(
             psd_all_i, psd_all_c, ear, normalization_type, sigma_smoothing, sigma_gauss_norm)
 
-        # create map from defined processed data
-        learned_map = hp.create_map(psd_binaural, mean_subtracted_map)
+
+        ####### Localization #######
 
         # localize the sounds and save the results
         x_mono, y_mono = hp.localize_sound(psd_mono, learned_map)
@@ -125,10 +139,17 @@ def main(model_name='single_participant', exp_name='single_participant_default')
     # # plt.suptitle('Single Participant')
     # # Monoaural Data (Ipsilateral), No Mean Subtracted
     # ax = fig.add_subplot(1, 4, 1)
-    # hpVis.plot_localization_result(x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True)
+    # hpVis.plot_localization_result(
+    #     x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True)
     # ax.set_title('Monoaural')
     # hpVis.set_axis(ax)
     # ax.set_ylabel('Estimated Elevation [deg]')
+    #
+    #
+    # ax = fig.add_subplot(1, 4, 3)
+    # hpVis.plot_localization_result(x_bin, y_bin, ax, SOUND_FILES, scale_values=True, linear_reg=True)
+    # ax.set_title('Binaural')
+    # hpVis.set_axis(ax)
     # plt.show()
 
 

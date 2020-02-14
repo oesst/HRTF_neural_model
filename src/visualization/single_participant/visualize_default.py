@@ -16,7 +16,7 @@ SOUND_FILES = list(SOUND_FILES.glob('**/*.wav'))
 @click.command()
 @click.option('--save_figs', default=False, help='Save the figures.')
 @click.option('--save_type', default='svg', help='Define the format figures are saved.')
-def main(save_figs=False, save_type='svg'):
+def main(save_figs=False, save_type='svg',model_name='single_participant', exp_name = 'single_participant_different_azis'):
 
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
@@ -40,14 +40,14 @@ def main(save_figs=False, save_type='svg'):
     # use the mean subtracted map as the learned map
     mean_subtracted_map = True
 
+    ear = 'ipsi'
     ######################################
 
     # create unique experiment name
-    exp_name = 'single_participant'
     exp_name_str = exp_name + '_' + normalization_type + str(sigma_smoothing) + str(sigma_gauss_norm) + str(mean_subtracted_map) + '_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 13) * 10) + '_azi_' + str(normalize) + '_norm.npy'
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
 
-    exp_path = ROOT / 'models' / exp_name
+    exp_path = ROOT / 'models' / model_name
     exp_file = exp_path / exp_name_str
     # check if model results exist already and load
     if exp_path.exists() and exp_file.is_file():
@@ -104,14 +104,15 @@ def main(save_figs=False, save_type='svg'):
         ax.set_xlabel('True Elevation [deg]')
 
         if save_figs:
-            fig_save_path = ROOT / 'reports' / 'figures' / exp_name
+            fig_save_path = ROOT / 'reports' / 'figures' / model_name
             if not fig_save_path.exists():
                 fig_save_path.mkdir(parents=True, exist_ok=True)
-            plt.savefig((fig_save_path / ('localization.' + save_type)).as_posix(), dpi=300)
+            plt.savefig((fig_save_path / (exp_name+'_localization.' + save_type)).as_posix(), dpi=300)
 
         plt.show()
     else:
-        logger.info('No data set found. Run model first...')
+        logger.error('No data set found. Run model first!')
+        logger.error(exp_file)
 
 
 if __name__ == '__main__':
