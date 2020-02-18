@@ -13,7 +13,7 @@ Experiments described here are found in _src/models/_ as separate folders.
 
 * hrtfs_comparison_exp : Here we compare the resulted learned spectral map with the actual HRTF of a participant with calculated correlation coefficients.
 
-
+* all_participants_exp: Experiments show localization results over all participants (_localize_sound.py_) in the median plane. A variation of this experiment is the _localize_sound_differten_azi.py_ which allows to choose the azimuth angle from which sounds originate. The learned map remains at 0 &deg;.
 
 ==============================
 
