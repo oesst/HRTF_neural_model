@@ -2,6 +2,7 @@
 import click
 import logging
 from pathlib import Path
+from src.data import generateHRTFs
 from src.data import generateData
 from src.features import helpers as hp
 # from src.visualization import helpers as hpVis
@@ -48,22 +49,29 @@ def process_inputs(psd_all_i, psd_all_c, ear='ipsi', normalization_type='sum_1',
     return psd_mono, psd_mono_mean, psd_binaural, psd_binaural_mean
 
 
-def main(model_name='single_participant', exp_name='single_participant_default'):
-    """ This script takes the filtered data and tries to localize sounds with a learned map
-        for a single participant.
+def pearson2d(A, B):
+    """ Calculate a 2d pearson correlation index """
+    A_ = A - A.mean()
+    B_ = B - B.mean()
+    r = (A_ * B_).sum() / np.sqrt((A_**2).sum() * (B_**2).sum())
+    return r
+
+
+def main(model_name='hrtf_comparison', exp_name='single_participant'):
+    """ This script calculates the correlation coefficient between the ipsi- and contralateral HRTF and the learned maps for a single participant.
     """
     logger = logging.getLogger(__name__)
-    logger.info('Localizing sounds for a single participant')
-
+    logger.info(
+        'Comparing learned HRTF maps with the actual HRTF of a participant')
 
     ########################################################################
     ######################## Set parameters ################################
     ########################################################################
-    azimuth = 13
-    snr = 0.2
+    azimuth = 12
+    snr = 0.0
     freq_bands = 128
-    participant_number = 9
 
+    participant_number = 9
     normalize = False
     time_window = 0.1  # time window in sec
 
@@ -77,13 +85,14 @@ def main(model_name='single_participant', exp_name='single_participant_default')
 
     ear = 'ipsi'
 
-    elevations = np.arange(0, 25, 1)
+    elevations = np.arange(0,25,1)
     ########################################################################
     ########################################################################
+    
 
     # create unique experiment name
     exp_name_str = exp_name + '_' + normalization_type + str(sigma_smoothing) + str(sigma_gauss_norm) + str(mean_subtracted_map) + '_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm' + str(len(elevations)) + '_elevs.npy'
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
 
     exp_path = ROOT / 'models' / model_name
     exp_file = exp_path / exp_name_str
@@ -92,53 +101,81 @@ def main(model_name='single_participant', exp_name='single_participant_default')
         # try to load the model files
         with exp_file.open('rb') as f:
             logger.info('Reading model data from file')
-            [x_mono, y_mono, x_mono_mean, y_mono_mean, x_bin,
-                y_bin, x_bin_mean, y_bin_mean] = pickle.load(f)
+            [hrtfs_i,hrtfs_c,learned_map_mono,learned_map_mono_mean,learned_map_bin,learned_map_bin_mean] = pickle.load(f)
     else:
-        # create Path
-        exp_path.mkdir(parents=True, exist_ok=True)
+
         # create or read the data
         psd_all_c, psd_all_i = generateData.create_data(
             freq_bands, participant_number, snr, normalize, azimuth, time_window)
 
-        # Take only given elevations
-        psd_all_c = psd_all_c[:, elevations, :]
-        psd_all_i = psd_all_i[:, elevations, :]
 
         # filter data and integrate it
         psd_mono, psd_mono_mean, psd_binaural, psd_binaural_mean = process_inputs(
             psd_all_i, psd_all_c, ear, normalization_type, sigma_smoothing, sigma_gauss_norm)
 
         # create map from defined processed data
-        learned_map = hp.create_map(psd_binaural, mean_subtracted_map)
 
-        # localize the sounds and save the results
-        x_mono, y_mono = hp.localize_sound(psd_mono, learned_map)
+        learned_map_mono = hp.create_map(psd_mono, False)
+        learned_map_mono_mean = hp.create_map(psd_mono, True)
+        learned_map_bin = hp.create_map(psd_binaural, False)
+        learned_map_bin_mean = hp.create_map(psd_binaural, True)
+        # learned_map = hp.create_map(psd_mono, False)
+        # Get the actual HRTF
+        hrtfs_c, hrtfs_i = generateHRTFs.create_data(
+            freq_bands, participant_number, snr, normalize, azimuth, time_window)
 
-        # localize the sounds and save the results
-        x_mono_mean, y_mono_mean = hp.localize_sound(
-            psd_mono_mean, learned_map)
+        # filter data and integrate it
+        # hrtfs_c = hp.filter_dataset(hrtfs_c, normalization_type=normalization_type,
+        #                                sigma_smoothing=0, sigma_gauss_norm=0)
+        hrtfs_i, psd_mono_mean, psd_binaural, psd_binaural_mean = process_inputs(
+            hrtfs_i, hrtfs_c, 'ipsi', normalization_type, sigma_smoothing, sigma_gauss_norm)
 
-        # localize the sounds and save the results
-        x_bin, y_bin = hp.localize_sound(psd_binaural, learned_map)
+        hrtfs_c, psd_mono_mean, psd_binaural, psd_binaural_mean = process_inputs(
+            hrtfs_i, hrtfs_c, 'contra', normalization_type, sigma_smoothing, sigma_gauss_norm)
 
-        # localize the sounds and save the results
-        x_bin_mean, y_bin_mean = hp.localize_sound(
-            psd_binaural_mean, learned_map)
+        # remove mean for later comparison
+        hrtfs_c = np.squeeze(hrtfs_c[0, 0:25, :])
+        hrtfs_c -= hrtfs_c.mean()
+        hrtfs_i = np.squeeze(hrtfs_i[0, 0:25, :])
+        hrtfs_i -= hrtfs_i.mean()
+        learned_map_mono -= learned_map_mono.mean()
+        learned_map_mono_mean -= learned_map_mono_mean.mean()
+        learned_map_bin -= learned_map_bin.mean()
+        learned_map_bin_mean -= learned_map_bin_mean.mean()
 
+
+        # ## calculate pearson index
+        # correlations[i_par, 0, 0] = pearson2d(learned_map_mono, hrtfs_i)
+        # correlations[i_par, 0, 1] = pearson2d(learned_map_mono, hrtfs_c)
+        #
+        # correlations[i_par, 1, 0] = pearson2d(
+        #     learned_map_mono_mean, hrtfs_i)
+        # correlations[i_par, 1, 1] = pearson2d(
+        #     learned_map_mono_mean, hrtfs_c)
+        #
+        # correlations[i_par, 2, 0] = pearson2d(learned_map_bin, hrtfs_i)
+        # correlations[i_par, 2, 1] = pearson2d(learned_map_bin, hrtfs_c)
+        #
+        # correlations[i_par, 3, 0] = pearson2d(
+        #     learned_map_bin_mean, hrtfs_i)
+        # correlations[i_par, 3, 1] = pearson2d(
+        #     learned_map_bin_mean, hrtfs_c)
+
+        ## create Path
+        exp_path.mkdir(parents=True, exist_ok=True)
         with exp_file.open('wb') as f:
             logger.info('Creating model file')
-            pickle.dump([x_mono, y_mono, x_mono_mean, y_mono_mean,
-                         x_bin, y_bin, x_bin_mean, y_bin_mean], f)
+            pickle.dump([hrtfs_i,hrtfs_c,learned_map_mono,learned_map_mono_mean,learned_map_bin,learned_map_bin_mean], f)
 
     # fig = plt.figure(figsize=(20, 5))
     # # plt.suptitle('Single Participant')
     # # Monoaural Data (Ipsilateral), No Mean Subtracted
-    # ax = fig.add_subplot(1, 4, 1)
-    # hpVis.plot_localization_result(x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True)
-    # ax.set_title('Monoaural')
-    # hpVis.set_axis(ax)
-    # ax.set_ylabel('Estimated Elevation [deg]')
+    # ax = fig.add_subplot(1, 2, 1)
+    # a = ax.pcolormesh(np.squeeze(correlations[:, :, 0]))
+    # plt.colorbar(a)
+    # ax = fig.add_subplot(1, 2, 2)
+    # a = ax.pcolormesh(np.squeeze(correlations[:, :, 1]))
+    # plt.colorbar(a)
     # plt.show()
 
 

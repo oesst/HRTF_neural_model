@@ -16,12 +16,14 @@ SOUND_FILES = list(SOUND_FILES.glob('**/*.wav'))
 @click.command()
 @click.option('--save_figs', default=False, help='Save the figures.')
 @click.option('--save_type', default='svg', help='Define the format figures are saved.')
-def main(save_figs=False, save_type='svg',model_name='single_participant', exp_name = 'single_participant_different_azis'):
+def main(save_figs=False, save_type='svg',model_name='single_participant', exp_name = 'single_participant_default'):
 
     logger = logging.getLogger(__name__)
-    logger.info('making final data set from raw data')
+    logger.info('Showing localization results for a single participant')
 
-    ### Set Parameters of Input Files ###
+    ########################################################################
+    ######################## Set parameters ################################
+    ########################################################################
     azimuth = 13
     snr = 0.2
     freq_bands = 128
@@ -41,11 +43,13 @@ def main(save_figs=False, save_type='svg',model_name='single_participant', exp_n
     mean_subtracted_map = True
 
     ear = 'ipsi'
-    ######################################
+    elevations = np.arange(0, 25, 1)
+    ########################################################################
+    ########################################################################
 
     # create unique experiment name
     exp_name_str = exp_name + '_' + normalization_type + str(sigma_smoothing) + str(sigma_gauss_norm) + str(mean_subtracted_map) + '_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm' + str(len(elevations)) + '_elevs.npy'
 
     exp_path = ROOT / 'models' / model_name
     exp_file = exp_path / exp_name_str

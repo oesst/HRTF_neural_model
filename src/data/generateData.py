@@ -21,9 +21,9 @@ SOUND_FILES = list(SOUND_FILES.glob('**/*.wav'))
 def create_data(freq_bands=24, participant_number=19, snr=0.2, normalize=False, azimuth=13, time_window=0.1):
 
     str_r = 'data/processed/binaural_right_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 13) * 10) + '_azi_' + str(normalize) + '_norm.npy'
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
     str_l = 'data/processed/binaural_left_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 13) * 10) + '_azi_' + str(normalize) + '_norm.npy'
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm.npy'
 
     path_data_r = ROOT / str_r
     path_data_l = ROOT / str_l
@@ -96,25 +96,30 @@ def create_data(freq_bands=24, participant_number=19, snr=0.2, normalize=False, 
 
 
 def main():
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
+    """ This script creates HRTF filtered sound samples of the sounds given in the folder SOUND_FILES.
+    This is done for each participant's HRTF specified in participant_numbers.
+    ALL ELEVATIONS (50) are taken to filter the data.
+
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
 
-    #### Set parameters ####
-    ########################
+    ########################################################################
+    ######################## Set parameters ################################
+    ########################################################################
     normalize = False  # paramter is not considered
 
     time_window = 0.1  # time window for spectrogram in sec
 
     # Parameter to test
-    snrs = np.arange(0, 1.1, 0.1)
-    freq_bandss = np.array([32, 64, 128])
-    azimuths = np.arange(0, 25, 1)
+    snrs = np.arange(0, 1.1, 0.1)  # Signal to noise ratio
+    freq_bandss = np.array([32, 64, 128]) # Frequency bands in resulting data
+    azimuths = np.arange(0, 25, 1)  # which azimuths to create
 
     participant_numbers = np.array([1, 2, 3, 8, 9, 10, 11,
                            12, 15, 17, 18, 19, 20, 21, 27, 28, 33, 40])
+    ########################################################################
+    ########################################################################
 
     # walk over all parameter combinations
     for _, participant_number in enumerate(participant_numbers):

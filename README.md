@@ -1,9 +1,23 @@
-hrtf_model
+#HRTF Model for Sound Source Localization
+
 ==============================
 
-sound source in the vertical plane.
+Computational model for sound source localization in the vertical plane based in learned HRTFs from the CIPIC database [[1]](#1).
 
-Project Organization
+
+## Experiments
+
+Experiments described here are found in _src/models/_ as separate folders.
+
+* single_participant_exp : Experiments show localization results for a single participant (_localize_sound.py_) in the median plane. A variation of this experiment is the _localize_sound_differten_azi.py_ which allows to choose the azimuth angle from which sounds originate. The learned map remains at 0 &deg;.
+
+* hrtfs_comparison_exp : Here we compare the resulted learned spectral map with the actual HRTF of a participant with calculated correlation coefficients.
+
+
+
+==============================
+
+Project Organization as from cookiecutter
 ------------
 
     ├── LICENSE
@@ -55,3 +69,10 @@ Project Organization
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+
+## References
+<a id="1">[1]</a>
+Algazi, V Ralph and Duda, Richard O and Thompson, Dennis M and Avendano, Carlos (2001).
+The cipic hrtf database.
+Proceedings of the 2001 IEEE Workshop on the Applications of Signal Processing to Audio and Acoustics (Cat. No. 01TH8575).
