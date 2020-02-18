@@ -39,8 +39,7 @@ class LinearReg():
 
     def print_coefficients(self):
         print('Gain: {0:1.2f}, Bias: {1:1.2f}, , r^2: {2:1.2f}'.format(self.lr_model.coef_[0, 0], self.lr_model.intercept_[0], self.rr))
-        return ('Gain: {0:1.2f},\nBias: {1:1.2f},\n'+r'$r^2$: {2:1.2f}').format(self.lr_model.coef_[0, 0], self.lr_model.intercept_[0], self.rr)
-
+        return ('Gain: {0:1.2f},\nBias: {1:1.2f},\n' + r'$r^2$: {2:1.2f}').format(self.lr_model.coef_[0, 0], self.lr_model.intercept_[0], self.rr)
 
 
 def get_localization_coefficients_score(x_test, y_test):
@@ -66,18 +65,18 @@ def removeOutliers(x, outlierConstant=1.5):
 
 
 def scale_v(x_test, y_test):
-    a = x_test[:, :, 1]/np.max(x_test[:, :, 1])
-    a = a*135 - 45
+    a = x_test[:, :, 1] / np.max(x_test[:, :, 1])
+    a = a * 135 - 45
     x_test[:, :, 1] = a
 
-    a = y_test[:, :]/np.max(y_test[:, :])
-    a = a*135 - 45
+    a = y_test[:, :] / np.max(y_test[:, :])
+    a = a * 135 - 45
     y_test[:, :] = a
 
     return x_test, y_test
 
 
-def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False, linear_reg=True, scatter_data=True):
+def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False, linear_reg=True, disp_values=False, scatter_data=True, reg_color=""):
     n_sound_types = len(sound_files)
 
     if scale_values:
@@ -86,9 +85,10 @@ def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False
     x_test = np.reshape(x_test, (x_test.shape[0] * x_test.shape[1], 2))
     y_test = np.reshape(y_test, (y_test.shape[0] * y_test.shape[1]))
 
-    ax.plot(np.arange(np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), np.arange(np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), color='grey', linestyle='--', alpha=0.3)
+    ax.plot(np.arange(np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), np.arange(
+        np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), color='grey', linestyle='--', alpha=0.3)
 
-    error_mse = 0
+    # error_mse = 0
     for i in range(0, n_sound_types):
         # get the data points, NOT the sound file type
         x = x_test[x_test[:, 0] == i, 1]
@@ -96,20 +96,29 @@ def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False
 
         if scatter_data:
             ax.scatter(x, y, s=(n_sound_types / (i + 1)) * len(sound_files), alpha=0.85, label=sound_files[i].name.split('.')[0])
-        error_mse += ((y - x) ** 2).mean(axis=0)
+        # error_mse += ((y - x) ** 2).mean(axis=0)
 
-    error_mse /= n_sound_types
+    # error_mse /= n_sound_types
 
     if linear_reg:
         lr_model = LinearReg(x_test, y_test)
         [x, y] = lr_model.get_fitted_line()
-        ax.plot(x, y, color='black')
-        text_str = lr_model.print_coefficients()
-        # these are matplotlib.patch.Patch properties
-        props = dict(boxstyle='round', facecolor='white', alpha=0.8)
 
-        # place a text box in upper left in axes coords
-        ax.text(0.05, 0.95, text_str, transform=ax.transAxes, verticalalignment='top', bbox=props)
+        if scatter_data:
+            ax.plot(x, y, color='black')
+        else:
+            if len(reg_color) > 0:
+                ax.plot(x, y, alpha=0.6, color=reg_color)
+            else:
+                ax.plot(x, y, alpha=0.6)
+
+        if disp_values:
+            text_str = lr_model.print_coefficients()
+            # these are matplotlib.patch.Patch properties
+            props = dict(boxstyle='round', facecolor='white', alpha=0.8)
+
+            # place a text box in upper left in axes coords
+            ax.text(0.05, 0.95, text_str, transform=ax.transAxes, verticalalignment='top', bbox=props)
 
     # ax.set_xlabel('True Elevation')
     # ax.set_ylabel('Elevation based on WN')
@@ -133,29 +142,25 @@ def set_layout(drawing_size=25, regular_seaborn=False, box_frame=True):
 
     mpl.rcParams['font.size'] = drawing_size
     mpl.rcParams['font.style'] = 'normal'
-    mpl.rcParams['font.weight'] = 'heavy'
     # mpl.rcParams['font.family'] = ['Symbol']
 
     mpl.rcParams['figure.titlesize'] = int(drawing_size * 1.3)
-    mpl.rcParams['figure.titleweight'] = 'heavy'
 
     mpl.rcParams['lines.linewidth'] = int(drawing_size / 5)
 
     mpl.rcParams['axes.labelsize'] = drawing_size
-    mpl.rcParams['axes.labelweight'] = 'heavy'
     mpl.rcParams['axes.titlesize'] = int(drawing_size * 1.3)
-    mpl.rcParams['axes.titleweight'] = 'heavy'
     mpl.rcParams['xtick.labelsize'] = int(drawing_size * 1)
     mpl.rcParams['ytick.labelsize'] = int(drawing_size * 1)
 
     if box_frame:
         mpl.rcParams['legend.fancybox'] = True
-        mpl.rcParams['legend.fontsize'] = int(drawing_size * 0.9)
+        mpl.rcParams['legend.fontsize'] = int(drawing_size * 1)
         mpl.rcParams['legend.frameon'] = True
         mpl.rcParams['legend.framealpha'] = 0.5
     else:
         mpl.rcParams['legend.fancybox'] = False
-        mpl.rcParams['legend.fontsize'] = int(drawing_size * 0.9)
+        mpl.rcParams['legend.fontsize'] = int(drawing_size * 1)
         mpl.rcParams['legend.frameon'] = False
     mpl.rcParams['legend.facecolor'] = 'inherit'
     mpl.rcParams['legend.edgecolor'] = '0.8'
@@ -234,8 +239,6 @@ def plot_elevation_map(data, sounds, figsize=(25, 5)):
         plt.colorbar(c)
 
 
-
-
 def set_axis(ax, label=False):
     if label:
         ax.set_xlabel('True Elevation [deg]')
@@ -268,10 +271,10 @@ def set_axis_all_elevations(ax, label=False):
     t = np.zeros(6)
     t[0] = -55
     t[1] = -45
-    t[2] = -45+91*0
-    t[3] = -45+91*1
-    t[4] = -45+91*2
-    t[5] = -45+91*3
+    t[2] = -45 + 91 * 0
+    t[3] = -45 + 91 * 1
+    t[4] = -45 + 91 * 2
+    t[5] = -45 + 91 * 3
     ax.set_xticklabels(t[1:])
 
     # t = np.zeros(6)

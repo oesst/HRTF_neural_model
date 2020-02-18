@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import click
 
+hp.set_layout(15)
+
 ROOT = Path(__file__).resolve().parents[3]
 
 SOUND_FILES = ROOT / 'data/raw/sound_samples/'
