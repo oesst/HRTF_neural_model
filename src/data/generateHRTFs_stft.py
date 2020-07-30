@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 import click
 import logging
@@ -13,22 +12,30 @@ from scipy import io
 import scipy.signal as sp
 from src.features import gtgram
 
+import librosa
+
 ROOT = Path(__file__).resolve().parents[2]
 # set the path to the sound files
 # create a list of the sound files
-
+# set the path to the sound files
+SOUND_FILES = ROOT / 'data/raw/sound_samples/'
+# create a list of the sound files
+SOUND_FILES = list(SOUND_FILES.glob('**/*.wav'))
 # Define up to which frequency the data should be generated
+
 
 
 def create_data(freq_bands=24, participant_number=19, snr=0.2, normalize=False, azimuth=13, time_window=0.1, max_freq=18000, clean=False):
 
-    str_r = 'data/processed_' + str(max_freq) + 'Hz/binaural_right_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm_flat_spectrum.npy'
-    str_l = 'data/processed_' + str(max_freq) + 'Hz/binaural_left_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
-        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm_flat_spectrum.npy'
+    dir_name = ROOT / ('data/processed_' + str(max_freq) + 'Hz/')
 
-    path_data_r = ROOT / str_r
-    path_data_l = ROOT / str_l
+    str_r = 'binaural_right_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm_flat_spectrum_stft.npy'
+    str_l = 'binaural_left_0_gammatone_' + str(time_window) + '_window_{0:03d}'.format(participant_number) + '_cipic_' + str(
+        int(snr * 100)) + '_srn_' + str(freq_bands) + '_channels_' + str((azimuth - 12) * 10) + '_azi_' + str(normalize) + '_norm_flat_spectrum_stft.npy'
+
+    path_data_r = dir_name / str_r
+    path_data_l = dir_name / str_l
 
     # Default gammatone-based spectrogram parameters
     twin = time_window
@@ -53,22 +60,22 @@ def create_data(freq_bands=24, participant_number=19, snr=0.2, normalize=False, 
         # get the data for the right ear
         hrir_r = hrir_mat['hrir_r']
         # use always all elevations -> 50
-        psd_all_i = np.zeros((1, 50, freq_bands))
-        psd_all_c = np.zeros((1, 50, freq_bands))
+        psd_all_i = np.zeros((1, 50, int(freq_bands/2+1)))
+        psd_all_c = np.zeros((1, 50, int(freq_bands/2+1)))
         # temporal_means = np.zeros((hrir_elevs.shape[0],87))
         for i_elevs in range(psd_all_i.shape[1]):
             # read the hrir for a specific location
             hrir_elevs = np.squeeze(hrir_l[azimuth, i_elevs, :])
             # use a flat spectrum
             signal = np.ones(fs)
+            # print(SOUND_FILES[18].as_posix())
+            # signal = sf.read(SOUND_FILES[18].as_posix())[0]
+            # if we make twin depending on the length of the sound we do not have to take the mean value
 
             # add noise to the signal
             signal_elevs = (1 - snr) * sp.lfilter(hrir_elevs, 1, signal) + \
                 snr * (signal + np.random.random(signal.shape[0]) * snr)
 
-            ###### TAKE THE ENTIRE SIGNAL #######
-            #         window_means = get_spectrum(signal_elevs,nperseg=welch_nperseg)
-            #####################################
             # read the hrir for a specific location
             hrir_elevs = np.squeeze(hrir_r[azimuth, i_elevs, :])
 
@@ -76,24 +83,37 @@ def create_data(freq_bands=24, participant_number=19, snr=0.2, normalize=False, 
             signal_elevs_c = (1 - snr) * sp.lfilter(hrir_elevs, 1, signal) + \
                 snr * (signal + np.random.random(signal.shape[0]) * snr)
 
-            ###### Apply Gammatone Filter Bank ##############
-            y = gtgram.gtgram(signal_elevs, fs, twin,
-                              thop, freq_bands, fmin, fmax)
-            y = (20 * np.log10(y + 1))
+            y = np.abs(librosa.stft(signal_elevs,n_fft=freq_bands))
             window_means = np.mean(y, axis=1)
-            psd_all_i[0, i_elevs, :] = window_means
+            psd_all_i[0, i_elevs, :] = np.log10(window_means)*20
 
-            y = gtgram.gtgram(signal_elevs_c, fs,
-                              twin, thop, freq_bands, fmin, fmax)
-            y = (20 * np.log10(y + 1))
+
+            y = np.abs(librosa.stft(signal_elevs_c,n_fft=freq_bands))
             window_means = np.mean(y, axis=1)
-            psd_all_c[0, i_elevs, :] = window_means
-            #################################################
+            psd_all_c[0, i_elevs, :] = np.log10(window_means)*20
 
+        freqs = librosa.fft_frequencies(sr=fs, n_fft=freq_bands)
+
+
+        # cut off frequencies at the end and beginning 100
+        indis = np.logical_and(100 <= freqs, freqs < max_freq)
+        # f_original = freqs[indis]
+        psd_all_i = psd_all_i[:,:,indis]
+        psd_all_c = psd_all_c[:,:,indis]
+
+        # indis = f_original >= 100
+        # f_original = f_original[indis]
+        # psd_original = psd_original[indis]
+
+
+        # create directory
+        dir_name.mkdir(exist_ok=True)
+        dir_name.mkdir(exist_ok=True)
+        # save data
         np.save(path_data_r.absolute(), psd_all_c)
         np.save(path_data_l.absolute(), psd_all_i)
 
-        return psd_all_c, psd_all_i, np.arange(0,freq_bands)
+        return psd_all_c, psd_all_i, freqs
 
 
 def main():

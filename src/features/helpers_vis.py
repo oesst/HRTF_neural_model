@@ -1,14 +1,18 @@
 import numpy as np
 from matplotlib import cm
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.signal import welch
-from itertools import islice
 import matplotlib as mpl
-from scipy.spatial import distance
-from sklearn.linear_model import LinearRegression
-from scipy.ndimage import gaussian_filter1d
-import seaborn as sns
+import src.features.filters as filters
+
+
+# Define some colors
+C0 = [31 / 255, 119 / 255, 180 / 255]
+C1 = [255 / 255, 127 / 255, 14 / 255]
+C2 = [44 / 255, 160 / 255, 44 / 255]
+C3 = [214 / 255, 39 / 255, 40 / 255]
+
+
+MY_COLORS = [C0, C1, C2, C3]
 
 
 class LinearReg():
@@ -29,6 +33,7 @@ class LinearReg():
         return [self.x, self.lr_model.predict(self.x)]
 
     def get_coefficients(self):
+        # gain, bias
         return self.lr_model.coef_[0, 0], self.lr_model.intercept_[0]
 
     def get_score(self, x=0, y=0):
@@ -64,13 +69,13 @@ def removeOutliers(x, outlierConstant=1.5):
     return np.array(resultList)
 
 
-def scale_v(x_test, y_test):
-    a = x_test[:, :, 1] / np.max(x_test[:, :, 1])
-    a = a * 135 - 45
+def scale_v(x_test, y_test, n_elevations):
+    a = x_test[:, :, 1] / n_elevations
+    a = a * (n_elevations - 1) * 5.625 - 45
     x_test[:, :, 1] = a
 
-    a = y_test[:, :] / np.max(y_test[:, :])
-    a = a * 135 - 45
+    a = y_test[:, :] / n_elevations
+    a = a * (n_elevations - 1) * 5.625 - 45
     y_test[:, :] = a
 
     return x_test, y_test
@@ -78,15 +83,14 @@ def scale_v(x_test, y_test):
 
 def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False, linear_reg=True, disp_values=False, scatter_data=True, reg_color=""):
     n_sound_types = len(sound_files)
-
     if scale_values:
-        x_test, y_test = scale_v(x_test, y_test)
+        x_test, y_test = scale_v(x_test, y_test, x_test.shape[0])
 
     x_test = np.reshape(x_test, (x_test.shape[0] * x_test.shape[1], 2))
     y_test = np.reshape(y_test, (y_test.shape[0] * y_test.shape[1]))
 
     ax.plot(np.arange(np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), np.arange(
-        np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), color='grey', linestyle='--', alpha=0.3)
+        np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), color='grey', linestyle='--', alpha=0.3, label='_nolegend_')
 
     # error_mse = 0
     for i in range(0, n_sound_types):
@@ -137,7 +141,9 @@ def set_layout(drawing_size=25, regular_seaborn=False, box_frame=True):
 
         # plt.style.use('seaborn')
         # sns.set_style("ticks")
-
+    import seaborn as sns
+    # 21 defines the number of sound types
+    # sns.set_palette(sns.color_palette("husl", 21))
     mpl.rcParams['grid.linestyle'] = ':'
 
     mpl.rcParams['font.size'] = drawing_size
@@ -239,50 +245,82 @@ def plot_elevation_map(data, sounds, figsize=(25, 5)):
         plt.colorbar(c)
 
 
-def set_axis(ax, label=False):
+def set_axis(ax, n_elevations=25, label=False):
     if label:
         ax.set_xlabel('True Elevation [deg]')
     t = np.zeros(6)
 
-    t[0] = -55
-    t[1] = -45
-    t[2] = 0
-    t[3] = 45
-    t[4] = 90
-    t[5] = 100
-    ax.set_xticks(t[1:-1])
+    if n_elevations == 25:
+        t[0] = -55
+        t[1] = -45
+        t[2] = 0
+        t[3] = 45
+        t[4] = 90
+        t[5] = 100
+        ax.set_xticks(t[1:-1])
+        ax.set_yticks(t[1:-1])
+    elif n_elevations == 50:
+        t = np.zeros(9)
 
-    t = np.zeros(6)
-    t[0] = -55
-    t[1] = -45
-    t[2] = 0
-    t[3] = 45
-    t[4] = 90
-    t[5] = 100
-    ax.set_yticks(t[1:-1])
-
+        t[0] = -55
+        t[1] = -45 + 45 * 0
+        t[2] = -45 + 45 * 1
+        t[3] = -45 + 45 * 2
+        t[4] = -45 + 45 * 3
+        t[5] = -45 + 45 * 4
+        t[6] = -45 + 45 * 5
+        t[7] = -45 + 45 * 6
+        t[8] = -45 + 45 * 7
+        ax.set_xticks(t[1:-1])
+        ax.set_yticks(t[1:-1])
+    else:
+        t[0] = -55
+        t[1] = -45
+        t[2] = -45 + ((n_elevations * 5.625) / 2.5) * 1
+        t[3] = -45 + ((n_elevations * 5.625) / 2.5) * 2
+        t[4] = -45 + ((n_elevations * 5.625) / 2.5) * 3
+        t[5] = -45 + ((n_elevations * 5.625) / 2.5) * 4
+        ax.set_xticks(t[1:-1])
+        ax.set_yticks(t[1:-1])
     return ax
 
 
-def set_axis_all_elevations(ax, label=False):
-    if label:
-        ax.set_xlabel('True Elevation [deg]')
+# def set_axis_all_elevations(ax, label=False):
+#     if label:
+#         ax.set_xlabel('True Elevation [deg]')
+#
+#
+#
+#     return ax
 
-    t = np.zeros(6)
-    t[0] = -55
-    t[1] = -45
-    t[2] = -45 + 91 * 0
-    t[3] = -45 + 91 * 1
-    t[4] = -45 + 91 * 2
-    t[5] = -45 + 91 * 3
-    ax.set_xticklabels(t[1:])
 
-    # t = np.zeros(6)
-    # t[0] = -55
-    # t[1] = -45
-    # t[2] = 0
-    # t[3] = 45
-    # t[4] = 90
-    # t[5] = 100
+class ERBFormatter(mpl.ticker.EngFormatter):
+    """
+    Axis formatter for gammatone filterbank analysis. This formatter calculates
+    the ERB spaced frequencies used for analysis, and renders them similarly to
+    the engineering axis formatter.
+    The scale is changed so that `[0, 1]` corresponds to ERB spaced frequencies
+    from ``high_freq`` to ``low_freq`` (note the reversal). It should be used
+    with ``imshow`` where the ``extent`` argument is ``[a, b, 1, 0]`` (again,
+    note the inversion).
+    """
 
-    return ax
+    def __init__(self, low_freq, high_freq, *args, **kwargs):
+        """
+        Creates a new :class ERBFormatter: for use with ``matplotlib`` plots.
+        Note that this class does not supply the ``units`` or ``places``
+        arguments; typically these would be ``'Hz'`` and ``0``.
+        :param low_freq: the low end of the gammatone filterbank frequency range
+        :param high_freq: the high end of the gammatone filterbank frequency
+          range
+        """
+        self.low_freq = high_freq
+        self.high_freq = low_freq
+        super().__init__(*args, **kwargs)
+
+    def _erb_axis_scale(self, fraction):
+        return filters.erb_point(self.low_freq, self.high_freq, fraction)
+
+    def __call__(self, val, pos=None):
+        newval = self._erb_axis_scale(val)
+        return super().__call__(newval, pos)
