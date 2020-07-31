@@ -22,7 +22,7 @@ class LinearReg():
 
         self.lr_model = LinearRegression()
 
-        self.x = np.squeeze(x[:, 1]).reshape(-1, 1)
+        self.x = x.reshape(-1, 1)
         self.y = y.reshape(-1, 1)
 
         self.lr_model.fit(self.x, self.y)

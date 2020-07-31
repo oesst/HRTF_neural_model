@@ -64,54 +64,27 @@ def main(save_figs=False, save_type='svg', model_name='single_participant', exp_
         # try to load the model files
         with open(exp_file.as_posix(), 'rb') as f:
             logger.info('Reading model data from file')
-            [x_mono, y_mono, x_mono_mean, y_mono_mean, x_bin,
-                y_bin, x_bin_mean, y_bin_mean] = pickle.load(f)
+            [localization_results, q_ele_all, r_ipsi_all] = pickle.load(f)
 
-        # define which elevations should be used
-        print(y_mono.shape)
-        x_mono = x_mono[:, elevations, :]
-        y_mono = y_mono[:, elevations]
-        x_mono_mean = x_mono_mean[:, elevations, :]
-        y_mono_mean = y_mono_mean[:, elevations]
-        x_bin = x_bin[:, elevations, :]
-        y_bin = y_bin[:, elevations]
-        x_bin_mean = x_bin_mean[:, elevations, :]
-        y_bin_mean = y_bin_mean[:, elevations]
+        fig = plt.figure()
 
-        fig = plt.figure(figsize=(20, 5))
-        # plt.suptitle('Single Participant')
-        # Monoaural Data (Ipsilateral), No Mean Subtracted
-        ax = fig.add_subplot(1, 4, 1)
-        hp_vis.plot_localization_result(
-            x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True, disp_values=True)
-        ax.set_title('Monoaural')
-        hp_vis.set_axis(ax, len(elevations))
-        ax.set_ylabel('Estimated Elevation [deg]')
-        ax.set_xlabel('True Elevation [deg]')
+        axes = fig.subplots(1, 1, squeeze=False, sharex=True, sharey=True)
 
-        # Monoaural Data (Ipsilateral),Mean Subtracted
-        ax = fig.add_subplot(1, 4, 2)
-        hp_vis.plot_localization_result(
-            x_mono_mean, y_mono_mean, ax, SOUND_FILES, scale_values=True, linear_reg=True, disp_values=True)
-        ax.set_title('Mono - Prior')
-        hp_vis.set_axis(ax, len(elevations))
-        ax.set_xlabel('True Elevation [deg]')
+        ax1 = axes[0, 0]
+        ax1.set_title('Neuron Results')
+        for i_sound, sound in enumerate(SOUND_FILES):
+            ax1.scatter(localization_results[i_sound, :, 0], localization_results[i_sound, :, 1])
 
-        # Binaural Data (Ipsilateral), No Mean Subtracted
-        ax = fig.add_subplot(1, 4, 3)
-        hp_vis.plot_localization_result(
-            x_bin, y_bin, ax, SOUND_FILES, scale_values=True, linear_reg=True, disp_values=True)
-        ax.set_title('Binaural')
-        hp_vis.set_axis(ax, len(elevations))
-        ax.set_xlabel('True Elevation [deg]')
-
-        # Binaural Data (Ipsilateral), Mean Subtracted
-        ax = fig.add_subplot(1, 4, 4)
-        hp_vis.plot_localization_result(
-            x_bin_mean, y_bin_mean, ax, SOUND_FILES, scale_values=True, linear_reg=True, disp_values=True)
-        ax.set_title('Bin - Prior')
-        hp_vis.set_axis(ax, len(elevations))
-        ax.set_xlabel('True Elevation [deg]')
+        print(np.squeeze(localization_results[:, :, 0]).shape)
+        print(np.squeeze(localization_results[:, :, 1]).shape)
+        lr = hp_vis.LinearReg(np.squeeze(localization_results[:, :, 0]), np.squeeze(localization_results[:, :, 1]))
+        x, y = lr.get_fitted_line()
+        ax1.plot(x, y, linewidth=3, color='black')
+        print('Neuron:')
+        lr.print_coefficients()
+        # ax1.set_ylim([0,25])
+        # ax1.set_xlim([0,25])
+        plt.show()
 
         plt.tight_layout()
 

@@ -35,7 +35,7 @@ SOUND_FILES = list(SOUND_FILES.glob('**/*.wav'))
 @click.option('--sigma_gauss_norm', default=1.0, help='Sigma for gauss normalization. 0 is off. Default is 1.')
 @click.option('--steady_state', is_flag=True)
 @click.option('--clean', is_flag=True)
-def main(model_name='train_network_single_participant', exp_name='single_participant_default', azimuth=12, participant_number=9, snr=0.0, freq_bands=24, max_freq=20000, elevations=25, mean_subtracted_map=True, ear='ipsi', normalization_type='sum_1', sigma_smoothing=0, sigma_gauss_norm=1, clean=False, steady_state=False):
+def main(model_name='localize_single_participant', exp_name='single_participant_default', azimuth=12, participant_number=9, snr=0.0, freq_bands=24, max_freq=20000, elevations=25, mean_subtracted_map=True, ear='ipsi', normalization_type='sum_1', sigma_smoothing=0, sigma_gauss_norm=1, clean=False, steady_state=False):
     """ This script takes the filtered data and tries to localize sounds with a learned map
         for a single participant.
     """
@@ -57,16 +57,20 @@ def main(model_name='train_network_single_participant', exp_name='single_partici
         snr * 100), freq_bands, max_freq, participant_number, (azimuth - 12) * 10, normalize, len(elevations), ear])
 
     exp_path = ROOT / 'models' / model_name
-    exp_file = exp_path / (exp_name_str +'_weights')
+    exp_file = exp_path / exp_name_str
+
+    # store responses
+    r_ipsi_all = np.zeros((len(SOUND_FILES), len(elevations), freq_bands))
+    q_ele_all = np.zeros((len(SOUND_FILES), len(elevations), len(elevations)))
+    localization_results = np.zeros((len(SOUND_FILES), len(elevations), 2))
 
     # check if model results exist already and load
     if not clean and exp_path.exists() and exp_file.is_file():
         # try to load the model files
         with exp_file.open('rb') as f:
             logger.info('Reading model data from file')
-            [w] = pickle.load(f)
+            [localization_results, q_ele_all, r_ipsi_all] = pickle.load(f)
     else:
-
         # create Path
         exp_path.mkdir(parents=True, exist_ok=True)
         # create or read the data
@@ -84,41 +88,43 @@ def main(model_name='train_network_single_participant', exp_name='single_partici
         # initialize network. if steady_state is True run do not use euler but calculate the response immediatley
         net = network.Network(steady_state=steady_state)
 
-        # if we use the steady state response to learn, we need more trials
-        if steady_state:
-            trials = 250
-        else:
-            trials = 25
+        # read previously read network weights
+        exp_file_weights = Path(exp_file.as_posix() + '_weights')
+        with exp_file_weights.open('rb') as f:
+            logger.info('Reading model data from file')
+            [w] = pickle.load(f)
+
+        # normalize weights
+        net.w = net.normalize_weights(w)
 
         # walk over sounds
         for sound, _ in enumerate(SOUND_FILES):
-            for ele in range(trials):
-                # for i_ele, ele in enumerate(elevations):
-                ele = np.random.randint(0, len(elevations))
-                sound = np.random.randint(0, len(SOUND_FILES))
+            for i_ele, ele in enumerate(elevations):
 
                 in_i = input_i[sound, ele]
                 in_c = input_c[sound, ele]
 
-                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=True)
+                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=False)
 
-                # logger.info('Sound No: ' + str(sound + 1) + ' of ' + str(len(SOUND_FILES)) +
-                #             '.  -> Elevation : ' + str(ele + 1) + ' of ' + str(len(elevations)))
+                # localize and save results
+                localization_results[sound, i_ele, 0] = ele
+                localization_results[sound, i_ele, 1] = q_ele[-1, :].argmax()
+                q_ele_all[sound, i_ele] = q_ele[-1]
+                r_ipsi_all[sound, i_ele] = r_ipsi[-1]
 
         with exp_file.open('wb') as f:
             logger.info('Creating model file')
-            pickle.dump([w], f)
+            pickle.dump([localization_results, q_ele_all, r_ipsi_all], f)
 
-    # print(net.dt)
+
+
     # fig = plt.figure(figsize=(10, 5))
     # # plt.suptitle('Single Participant')
     # # Monoaural Data (Ipsilateral), No Mean Subtracted
     # ax = fig.add_subplot(1, 1, 1)
     # # hpVis.plot_localization_result(x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True)
-    # w = (w.T / w.sum(1)).T
-    #
-    # c = ax.pcolormesh(w)
-    # plt.colorbar(c)
+    # for i_sound, sound in enumerate(SOUND_FILES):
+    #     ax.scatter(localization_results[i_sound, :, 0], localization_results[i_sound, :, 1])
     # plt.show()
 
 

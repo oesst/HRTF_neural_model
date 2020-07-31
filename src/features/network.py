@@ -103,6 +103,16 @@ class Network():
 
         return q_ele, r_ipsi, self.w
 
+    # Define how weights are normalized
+
+    def normalize_weights(self,w):
+        # sum over all frequencies, result has len=25 that is to ensure equal energy in each elevation
+        w = (w.T / w.sum(1)).T
+        # sum over all elevations, result has len=128 that is to ensure equal energy in each frequency band. needed for neural readout
+        w = w / w.sum(0)
+
+        return w
+
     ##### Define all the neuron ODE functions #####
     # Defines the output transfer
 
