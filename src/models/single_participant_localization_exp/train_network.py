@@ -74,41 +74,51 @@ def main(model_name='single_participant', exp_name='single_participant_default',
             freq_bands, participant_number, snr, normalize, azimuth, time_window, max_freq=max_freq)
 
         # Take only given elevations
-        in_contra = psd_all_c[:, elevations, :]
-        in_ipsi = psd_all_i[:, elevations, :]
+        input_c = psd_all_c[:, elevations, :]
+        input_i = psd_all_i[:, elevations, :]
 
         # normalize inputs over frequencies
-        in_contra = in_contra / in_contra.sum(2)[:, :, np.newaxis]
-        in_ipsi = in_ipsi / in_ipsi.sum(2)[:, :, np.newaxis]
+        input_c = input_c / input_c.sum(2)[:, :, np.newaxis]
+        input_i = input_i / input_i.sum(2)[:, :, np.newaxis]
 
         # initialize network. if steady_state is True run do not use euler but calculate the response immediatley
+        net = network.Network(steady_state=steady_state)
+
+        # if we use the steady state response to learn, we need more trials
         if steady_state:
-            net = network.Network(dt=1, tau=1, learning_rate=0.1)
+            trials = 250
         else:
-            net = network.Network()
+            trials = 25
 
         # walk over sounds
         for sound, _ in enumerate(SOUND_FILES):
-            for i_ele, ele in enumerate(elevations):
+            for ele in range(trials):
+                # for i_ele, ele in enumerate(elevations):
                 ele = np.random.randint(0, len(elevations))
-                sound = np.random.choice(np.arange(0, len(SOUND_FILES)))
-                q_ele, r_ipsi, w = net.run(in_ipsi[sound, ele], in_contra[sound, ele], ele, train=True)
+                sound = np.random.randint(0, len(SOUND_FILES))
 
-                logger.info('Sound No: ' + str(sound + 1) + ' of ' + str(len(SOUND_FILES)) +
-                            '.  -> Elevation : ' + str(ele + 1) + ' of ' + str(len(elevations)))
+                in_i = input_i[sound, ele]
+                in_c = input_c[sound, ele]
+
+                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=True)
+
+                # logger.info('Sound No: ' + str(sound + 1) + ' of ' + str(len(SOUND_FILES)) +
+                #             '.  -> Elevation : ' + str(ele + 1) + ' of ' + str(len(elevations)))
 
         with exp_file.open('wb') as f:
             logger.info('Creating model file')
             pickle.dump([w], f)
 
+    print(net.dt)
     fig = plt.figure(figsize=(10, 5))
     # plt.suptitle('Single Participant')
     # Monoaural Data (Ipsilateral), No Mean Subtracted
     ax = fig.add_subplot(1, 1, 1)
     # hpVis.plot_localization_result(x_mono, y_mono, ax, SOUND_FILES, scale_values=True, linear_reg=True)
-    w_tmp = (w.T/ w.sum(1)).T
+    w = (w.T / w.sum(1)).T
 
-    ax.pcolormesh(w)
+    c = ax.pcolormesh(w)
+    plt.colorbar(c)
     plt.show()
 
 
