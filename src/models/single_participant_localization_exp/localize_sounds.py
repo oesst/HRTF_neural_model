@@ -62,14 +62,15 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
     # store responses
     r_ipsi_all = np.zeros((len(SOUND_FILES), len(elevations), freq_bands))
     q_ele_all = np.zeros((len(SOUND_FILES), len(elevations), len(elevations)))
-    localization_results = np.zeros((len(SOUND_FILES), len(elevations), 2))
+    localization_results_binaural = np.zeros((len(SOUND_FILES), len(elevations), 2))
+    localization_results_monaural = np.zeros((len(SOUND_FILES), len(elevations), 2))
 
     # check if model results exist already and load
     if not clean and exp_path.exists() and exp_file.is_file():
         # try to load the model files
         with exp_file.open('rb') as f:
             logger.info('Reading model data from file')
-            [localization_results, q_ele_all, r_ipsi_all] = pickle.load(f)
+            [localization_results_binaural, localization_results_monaural, q_ele_all, r_ipsi_all] = pickle.load(f)
     else:
         # create Path
         exp_path.mkdir(parents=True, exist_ok=True)
@@ -97,6 +98,23 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
         # normalize weights
         net.w = net.normalize_weights(w)
 
+        ############## MONAURAL #################
+        # walk over sounds
+        for sound, _ in enumerate(SOUND_FILES):
+            for i_ele, ele in enumerate(elevations):
+
+                in_i = input_i[sound, ele]
+                in_c = np.zeros(input_c[sound, ele].shape) + 0.1
+
+                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=False)
+
+                # localize and save results
+                localization_results_monaural[sound, i_ele, 0] = ele
+                localization_results_monaural[sound, i_ele, 1] = q_ele[-1, :].argmax()
+                q_ele_all[sound, i_ele] = q_ele[-1]
+                r_ipsi_all[sound, i_ele] = r_ipsi[-1]
+
+        ############## BINAURAL #################
         # walk over sounds
         for sound, _ in enumerate(SOUND_FILES):
             for i_ele, ele in enumerate(elevations):
@@ -107,16 +125,14 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
                 q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=False)
 
                 # localize and save results
-                localization_results[sound, i_ele, 0] = ele
-                localization_results[sound, i_ele, 1] = q_ele[-1, :].argmax()
+                localization_results_binaural[sound, i_ele, 0] = ele
+                localization_results_binaural[sound, i_ele, 1] = q_ele[-1, :].argmax()
                 q_ele_all[sound, i_ele] = q_ele[-1]
                 r_ipsi_all[sound, i_ele] = r_ipsi[-1]
 
         with exp_file.open('wb') as f:
             logger.info('Creating model file')
-            pickle.dump([localization_results, q_ele_all, r_ipsi_all], f)
-
-
+            pickle.dump([localization_results_binaural, localization_results_monaural, q_ele_all, r_ipsi_all], f)
 
     # fig = plt.figure(figsize=(10, 5))
     # # plt.suptitle('Single Participant')

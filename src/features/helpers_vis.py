@@ -70,9 +70,9 @@ def removeOutliers(x, outlierConstant=1.5):
 
 
 def scale_v(x_test, y_test, n_elevations):
-    a = x_test[:, :, 1] / n_elevations
+    a = x_test[:, :] / n_elevations
     a = a * (n_elevations - 1) * 5.625 - 45
-    x_test[:, :, 1] = a
+    x_test[:, :] = a
 
     a = y_test[:, :] / n_elevations
     a = a * (n_elevations - 1) * 5.625 - 45
@@ -83,11 +83,12 @@ def scale_v(x_test, y_test, n_elevations):
 
 def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False, linear_reg=True, disp_values=False, scatter_data=True, reg_color=""):
     n_sound_types = len(sound_files)
+
     if scale_values:
         x_test, y_test = scale_v(x_test, y_test, x_test.shape[0])
 
-    x_test = np.reshape(x_test, (x_test.shape[0] * x_test.shape[1], 2))
-    y_test = np.reshape(y_test, (y_test.shape[0] * y_test.shape[1]))
+    # x_test = np.reshape(x_test, (x_test.shape[0] * x_test.shape[1]))
+    # y_test = np.reshape(y_test, (y_test.shape[0] * y_test.shape[1]))
 
     ax.plot(np.arange(np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), np.arange(
         np.ceil(np.min(x_test)), np.ceil(np.max(x_test))), color='grey', linestyle='--', alpha=0.3, label='_nolegend_')
@@ -95,8 +96,8 @@ def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False
     # error_mse = 0
     for i in range(0, n_sound_types):
         # get the data points, NOT the sound file type
-        x = x_test[x_test[:, 0] == i, 1]
-        y = y_test[x_test[:, 0] == i]
+        x = x_test[i,:]
+        y = y_test[i,:]
 
         if scatter_data:
             ax.scatter(x, y, s=(n_sound_types / (i + 1)) * len(sound_files), alpha=0.85, label=sound_files[i].name.split('.')[0])

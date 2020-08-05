@@ -64,27 +64,27 @@ def main(save_figs=False, save_type='svg', model_name='single_participant', exp_
         # try to load the model files
         with open(exp_file.as_posix(), 'rb') as f:
             logger.info('Reading model data from file')
-            [localization_results, q_ele_all, r_ipsi_all] = pickle.load(f)
+            [localization_results_binaural, localization_results_monaural, q_ele_all, r_ipsi_all] = pickle.load(f)
 
         fig = plt.figure()
 
-        axes = fig.subplots(1, 1, squeeze=False, sharex=True, sharey=True)
+        axes = fig.subplots(1, 2, squeeze=False, sharex=True, sharey=True)
 
         ax1 = axes[0, 0]
-        ax1.set_title('Neuron Results')
-        for i_sound, sound in enumerate(SOUND_FILES):
-            ax1.scatter(localization_results[i_sound, :, 0], localization_results[i_sound, :, 1])
+        ax1.set_title('Monaural Localization')
 
-        print(np.squeeze(localization_results[:, :, 0]).shape)
-        print(np.squeeze(localization_results[:, :, 1]).shape)
-        lr = hp_vis.LinearReg(np.squeeze(localization_results[:, :, 0]), np.squeeze(localization_results[:, :, 1]))
-        x, y = lr.get_fitted_line()
-        ax1.plot(x, y, linewidth=3, color='black')
-        print('Neuron:')
-        lr.print_coefficients()
+        hp_vis.plot_localization_result(
+            localization_results_monaural[:, :, 0], localization_results_monaural[:, :, 1], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
         # ax1.set_ylim([0,25])
         # ax1.set_xlim([0,25])
-        plt.show()
+
+        ax1 = axes[0, 1]
+        ax1.set_title('Binaural Localization')
+
+        hp_vis.plot_localization_result(
+            localization_results_binaural[:, :, 0], localization_results_binaural[:, :, 1], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
+        # ax1.set_ylim([0,25])
+        # ax1.set_xlim([0,25])
 
         plt.tight_layout()
 
