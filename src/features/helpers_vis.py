@@ -70,15 +70,19 @@ def removeOutliers(x, outlierConstant=1.5):
 
 
 def scale_v(x_test, y_test, n_elevations):
-    a = x_test[:, :] / n_elevations
+
+    x = np.copy(x_test)
+    y = np.copy(y_test)
+
+    a = x[:, :] / n_elevations
     a = a * (n_elevations - 1) * 5.625 - 45
-    x_test[:, :] = a
+    x[:, :] = a
 
     a = y_test[:, :] / n_elevations
     a = a * (n_elevations - 1) * 5.625 - 45
-    y_test[:, :] = a
+    y[:, :] = a
 
-    return x_test, y_test
+    return x, y
 
 
 def plot_localization_result(x_test, y_test, ax, sound_files, scale_values=False, linear_reg=True, disp_values=False, scatter_data=True, reg_color=""):
@@ -142,9 +146,7 @@ def set_layout(drawing_size=25, regular_seaborn=False, box_frame=True):
 
         # plt.style.use('seaborn')
         # sns.set_style("ticks")
-    import seaborn as sns
     # 21 defines the number of sound types
-    # sns.set_palette(sns.color_palette("husl", 21))
     mpl.rcParams['grid.linestyle'] = ':'
 
     mpl.rcParams['font.size'] = drawing_size

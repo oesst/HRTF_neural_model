@@ -1,13 +1,15 @@
 from scipy.ndimage import gaussian_filter1d, convolve1d
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
 warnings.filterwarnings('error')
+np.random.seed(0)
 
 
 class Network():
     "This class defines the network, its structure and parameters"
 
-    def __init__(self, steady_state=False, dt=0.0001, T=0.3, tau=0.005, learning_rate=0.00005, freq_bands=128, n_elevations=25, gauss_sigma=3):
+    def __init__(self, steady_state=False, dt=0.0001, T=0.3, tau=0.005, learning_rate=0.00005, freq_bands=128, n_elevations=25, gauss_sigma=3, n_sounds=21):
 
         ##### Set parameters #####
         self.steady_state = steady_state
@@ -18,6 +20,11 @@ class Network():
         self.freq_bands = freq_bands    # frequency bands used
         self.n_elevations = n_elevations  # number of elevations used
         self.w = np.random.random_sample((n_elevations, freq_bands)) * 0.1    # initialize the weights
+        self.w_sounds_i = np.random.random_sample((n_sounds, n_elevations, freq_bands)) * 0.1    # initialize the weights for sounds
+        self.w_sounds_c = np.random.random_sample((n_sounds, n_elevations, freq_bands)) * 0.1    # initialize the weights for sounds
+        # self.w_sounds_i = np.zeros((n_sounds, n_elevations, freq_bands))
+        # self.w_sounds_c = np.zeros((n_sounds, n_elevations, freq_bands))
+
         self.gauss_sigma = gauss_sigma  # Defines the sigma for the input gauss kernel
         self.learning_rate = learning_rate  # learning rate for weights
 
@@ -29,7 +36,7 @@ class Network():
             self.tau = 1
             self.learning_rate = 0.1
 
-    def run(self, in_i, in_c, ele, train=False):
+    def run(self, in_i, in_c, ele, sound, train=False, prior_info=False):
         """ This function runs the model for given time steps time_steps with given ipsi and contralateral inputs.
             ele is the current given elevation. If train is true, a connection matrix w is learned between the last two layers
             If time_steps is not given, the default time steps given at initialization stage are executed"""
@@ -44,6 +51,9 @@ class Network():
 
         r_in_c = np.zeros((len(self.ts), self.freq_bands))
         r_in_i = np.zeros((len(self.ts), self.freq_bands))
+
+        r_prior_c = np.zeros((len(self.ts), self.freq_bands))
+        r_prior_i = np.zeros((len(self.ts), self.freq_bands))
 
         p_sum_i = np.zeros((len(self.ts), self.freq_bands))
         p_sum_c = np.zeros((len(self.ts), self.freq_bands))
@@ -68,6 +78,20 @@ class Network():
             inhibitory_in = self.out_thres(p_in_i[t + 1, :])
             r_in_i[t + 1, :] = r_in_i[t, :] + self.dt * self.ode_r_in(r_in_i[t, :], excitatory_in, inhibitory_in)
 
+            excitatory_in = self.out_thres(r_in_i[t + 1, :])
+            # only use prior information if set to ture
+            if prior_info:
+                inhibitory_in = self.out_thres(self.w_sounds_i[sound].mean(0))
+            else:
+                inhibitory_in = 0
+            r_prior_i[t + 1, :] = r_prior_i[t, :] + self.dt * self.ode_r_prior(r_prior_i[t, :], excitatory_in, inhibitory_in)
+
+            # train the sound specific prior
+            if train and prior_info:
+                r_ = r_prior_i[t + 1, :, np.newaxis]
+                self.w_sounds_i[sound, :, :] = self.w_sounds_i[sound, :, :] + self.learning_rate * \
+                    (r_.T - self.w_sounds_i[sound, :, :]) * v_in
+
             # p_in_c neuron
             # feed inputs ipsi inhibition
             p_in_c[t + 1, :] = p_in_c[t, :] + self.dt * self.ode_p_in(p_in_c[t, :], excitatory_in_p_c)
@@ -77,39 +101,57 @@ class Network():
             inhibitory_in = self.out_thres(p_in_c[t + 1, :])
             r_in_c[t + 1, :] = r_in_c[t, :] + self.dt * self.ode_r_in(r_in_c[t, :], excitatory_in, inhibitory_in)
 
+            excitatory_in = self.out_thres(r_in_c[t + 1, :])
+            # only use prior information if set to ture
+            if prior_info:
+                inhibitory_in = self.out_thres(self.w_sounds_c[sound].mean(0))
+            else:
+                inhibitory_in = 0
+            r_prior_c[t + 1, :] = r_prior_c[t, :] + self.dt * self.ode_r_prior(r_prior_c[t, :], excitatory_in, inhibitory_in)
+
+            # train the sound specific prior
+            if train and prior_info:
+                r_ = r_prior_c[t + 1, :, np.newaxis]
+                self.w_sounds_c[sound, :, :] = self.w_sounds_c[sound, :, :] + self.learning_rate * \
+                    (r_.T - self.w_sounds_c[sound, :, :]) * v_in
+
             # p_sum neurons
-            excitatory_in = self.out_thres(r_in_i[t + 1, :])
+            excitatory_in = self.out_thres(r_prior_i[t + 1, :])
             p_sum_i[t + 1, :] = p_sum_i[t, :] + self.dt * self.ode_p_sum(p_sum_i[t, :], excitatory_in)
 
-            excitatory_in = self.out_thres(r_in_c[t + 1, :])
+            excitatory_in = self.out_thres(r_prior_c[t + 1, :])
             p_sum_c[t + 1, :] = p_sum_c[t, :] + self.dt * self.ode_p_sum(p_sum_c[t, :], excitatory_in)
 
             # r_ipsi neuron
-            excitatory_in = self.out_thres(r_in_i[t + 1, :])
-            inhibitory_in = self.out_thres(p_sum_c[t + 1, :]) + self.out_thres(p_sum_i[t + 1, :])
+            excitatory_in = self.out_thres(r_prior_i[t + 1, :])
+            inhibitory_in = self.out_thres(p_sum_c[t + 1, :])  # + self.out_thres(p_sum_i[t + 1, :])
             r_ipsi[t + 1, :] = r_ipsi[t, :] + self.dt * self.ode_r(r_ipsi[t, :], excitatory_in, inhibitory_in)
 
             # q readout neurons
             excitatory_in = np.dot(self.out_thres(r_ipsi[t + 1, :]), self.w.T)
             q_ele[t + 1, :] = q_ele[t, :] + self.dt * self.ode_q_sum(q_ele[t, :], excitatory_in)
 
+            # plt.plot(r_ipsi[t + 1, :])
+            # # plt.plot(r_prior_i[t + 1, :])
+            # plt.show()
+
             if train:
                 # Learning
                 # q_ = q_ele[t + 1, :, np.newaxis]
-                r_ = r_ipsi[t + 1, :, np.newaxis]
-                v_ = v_in
-                # Works, but is supervised ...
-                self.w[:, :] = self.w[:, :] + self.learning_rate * (r_.T - self.w[:, :]) * v_
 
-        return q_ele, r_ipsi, self.w
+                r_ = r_ipsi[t + 1, :, np.newaxis]
+                # Works, but is supervised ...
+                self.w[:, :] = self.w[:, :] + self.learning_rate * (r_.T - self.w[:, :]) * v_in
+
+        return q_ele, r_ipsi, self.w, self.w_sounds_i, self.w_sounds_c
 
     # Define how weights are normalized
 
-    def normalize_weights(self,w):
+    def normalize_weights(self, w):
         # sum over all frequencies, result has len=25 that is to ensure equal energy in each elevation
         w = (w.T / w.sum(1)).T
         # sum over all elevations, result has len=128 that is to ensure equal energy in each frequency band. needed for neural readout
-        w = w / w.sum(0)
+        # w = w / w.sum(0)
 
         return w
 
@@ -160,6 +202,26 @@ class Network():
             d_r = (beta * excitatory_in - gamma * inhibitory_in) / (alpha * excitatory_in + excitatory_in + kappa * inhibitory_in)
         else:
             d_r = -alpha * r * excitatory_in + (beta - r) * excitatory_in - (gamma + kappa * r) * inhibitory_in
+
+        return d_r / self.tau
+
+    # define the ODE for gaussian filter neurons
+    def ode_r_prior(self, r, excitatory_in, inhibitory_in):
+        # alpha defines the decay rate of the membrane potential but also the value to which it saturates (implicitly)
+        alpha = 1
+        # beta defines the upper limit of the membrane potential
+        beta = 2
+        # gamma defines the subtractive influence of the inhibitory input
+        gamma = 0.9
+        # kappa defines the divisive influence of the inhibitory input
+        kappa = 0.0
+
+        # calculate the change of r_Alearn
+    #     d_r  = -alpha  * r * excitatory_in  + (beta -r ) * excitatory_in  - (gamma  + kappa  * r ) * inhibitory_in
+        if self.steady_state:
+            d_r = (beta * excitatory_in - gamma * inhibitory_in) / (alpha + excitatory_in + kappa * inhibitory_in)
+        else:
+            d_r = -alpha * r + (beta - r) * excitatory_in - (gamma + kappa * r) * inhibitory_in
 
         return d_r / self.tau
 

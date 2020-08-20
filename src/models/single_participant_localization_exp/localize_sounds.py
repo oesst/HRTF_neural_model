@@ -62,8 +62,8 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
     # store responses
     r_ipsi_all = np.zeros((len(SOUND_FILES), len(elevations), freq_bands))
     q_ele_all = np.zeros((len(SOUND_FILES), len(elevations), len(elevations)))
-    localization_results_binaural = np.zeros((len(SOUND_FILES), len(elevations), 2))
-    localization_results_monaural = np.zeros((len(SOUND_FILES), len(elevations), 2))
+    localization_results_binaural = np.zeros((len(SOUND_FILES), len(elevations), 3))
+    localization_results_monaural = np.zeros((len(SOUND_FILES), len(elevations), 3))
 
     # check if model results exist already and load
     if not clean and exp_path.exists() and exp_file.is_file():
@@ -93,10 +93,12 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
         exp_file_weights = Path(exp_file.as_posix() + '_weights')
         with exp_file_weights.open('rb') as f:
             logger.info('Reading model data from file')
-            [w] = pickle.load(f)
+            [w, w_sounds_i, w_sounds_c] = pickle.load(f)
 
         # normalize weights
         net.w = net.normalize_weights(w)
+        net.w_sounds_i = w_sounds_i
+        net.w_sounds_c = w_sounds_c
 
         ############## MONAURAL #################
         # walk over sounds
@@ -106,13 +108,16 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
                 in_i = input_i[sound, ele]
                 in_c = np.zeros(input_c[sound, ele].shape) + 0.1
 
-                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=False)
-
+                # NO PRIOR
+                q_ele, r_ipsi, w, w_sounds_i, w_sounds_c = net.run(in_i, in_c, ele, sound, train=False, prior_info=False)
                 # localize and save results
                 localization_results_monaural[sound, i_ele, 0] = ele
                 localization_results_monaural[sound, i_ele, 1] = q_ele[-1, :].argmax()
-                q_ele_all[sound, i_ele] = q_ele[-1]
-                r_ipsi_all[sound, i_ele] = r_ipsi[-1]
+
+                # PRIOR
+                q_ele, r_ipsi, w, w_sounds_i, w_sounds_c = net.run(in_i, in_c, ele, sound, train=False, prior_info=True)
+                # localize and save results
+                localization_results_monaural[sound, i_ele, 2] = q_ele[-1, :].argmax()
 
         ############## BINAURAL #################
         # walk over sounds
@@ -122,13 +127,16 @@ def main(model_name='localize_single_participant', exp_name='single_participant_
                 in_i = input_i[sound, ele]
                 in_c = input_c[sound, ele]
 
-                q_ele, r_ipsi, w = net.run(in_i, in_c, ele, train=False)
-
+                # NO PRIOR
+                q_ele, r_ipsi, w, w_sounds_i, w_sounds_c = net.run(in_i, in_c, ele, sound, train=False, prior_info=False)
                 # localize and save results
                 localization_results_binaural[sound, i_ele, 0] = ele
                 localization_results_binaural[sound, i_ele, 1] = q_ele[-1, :].argmax()
-                q_ele_all[sound, i_ele] = q_ele[-1]
-                r_ipsi_all[sound, i_ele] = r_ipsi[-1]
+
+                # PRIOR
+                q_ele, r_ipsi, w, w_sounds_i, w_sounds_c = net.run(in_i, in_c, ele, sound, train=False, prior_info=True)
+                # localize and save results
+                localization_results_binaural[sound, i_ele, 2] = q_ele[-1, :].argmax()
 
         with exp_file.open('wb') as f:
             logger.info('Creating model file')

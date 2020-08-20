@@ -165,7 +165,7 @@ snr_exp:
 
 
 # run all models and visualizations
-all: 	single_participant all_participants different_learned_maps hrtf_comparison hrtf_creation parameter_sweep snr_exp map_learning
+all: 	single_participant all_participants different_learned_maps hrtf_comparison hrtf_creation parameter_sweep map_learning snr_exp 
 
 
 

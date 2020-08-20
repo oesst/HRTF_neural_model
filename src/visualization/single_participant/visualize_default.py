@@ -68,28 +68,42 @@ def main(save_figs=False, save_type='svg', model_name='single_participant', exp_
 
         fig = plt.figure()
 
-        axes = fig.subplots(1, 2, squeeze=False, sharex=True, sharey=True)
+        axes = fig.subplots(1, 4, squeeze=False, sharex=False, sharey=False)
 
         ax1 = axes[0, 0]
-        ax1.set_title('Monaural Localization')
+        ax1.set_title('Monaural')
 
         hp_vis.plot_localization_result(
-            localization_results_monaural[:, :, 0], localization_results_monaural[:, :, 1], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
+            localization_results_monaural[:, :, 0], localization_results_monaural[:, :, 1], ax=ax1, sound_files=SOUND_FILES, scale_values=False, disp_values=True)
         # ax1.set_ylim([0,25])
         # ax1.set_xlim([0,25])
 
         ax1 = axes[0, 1]
-        ax1.set_title('Binaural Localization')
+        ax1.set_title('Monaural - Prior ')
 
         hp_vis.plot_localization_result(
+            localization_results_monaural[:, :, 0], localization_results_monaural[:, :, 2], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
+        # ax1.set_ylim([0,25])
+        # ax1.set_xlim([0,25])
+
+        ax1 = axes[0, 2]
+        ax1.set_title('Binaural')
+        hp_vis.plot_localization_result(
             localization_results_binaural[:, :, 0], localization_results_binaural[:, :, 1], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
+        # ax1.set_ylim([0,25])
+        # ax1.set_xlim([0,25])
+
+        ax1 = axes[0, 3]
+        ax1.set_title('Binaural - Prior')
+        hp_vis.plot_localization_result(
+            localization_results_binaural[:, :, 0], localization_results_binaural[:, :, 2], ax=ax1, sound_files=SOUND_FILES, scale_values=True, disp_values=True)
         # ax1.set_ylim([0,25])
         # ax1.set_xlim([0,25])
 
         plt.tight_layout()
 
         if save_figs:
-            fig_save_path = ROOT / 'reports' / 'figures' / model_name / exp_name_str
+            fig_save_path = ROOT / 'reports' / 'figures' / exp_name_str / model_name
             if not fig_save_path.exists():
                 fig_save_path.mkdir(parents=True, exist_ok=True)
             plt.savefig((fig_save_path / (model_name + '_' + exp_name + '_localization.' + save_type)).as_posix(), dpi=300)

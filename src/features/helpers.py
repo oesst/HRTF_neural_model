@@ -8,7 +8,6 @@ import matplotlib as mpl
 from scipy.spatial import distance
 from sklearn.linear_model import LinearRegression
 from scipy.ndimage import gaussian_filter1d
-import seaborn as sns
 from src.features.helpers_vis import LinearReg
 
 def process_inputs(psd_all_i, psd_all_c, ear='ipsi', normalization_type='sum_1', sigma_smoothing=0, sigma_gauss_norm=1):
