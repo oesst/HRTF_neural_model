@@ -70,7 +70,8 @@ all_participants:
 		test $(visualization_type)
 
 		# create model file
-		$(PYTHON_INTERPRETER) src/models/all_participants_localization_exp/localize_sound.py --model_name='all_participants' --exp_name=$(exp_name) --azimuth=$(azimuth) --snr=$(snr) --freq_bands=$(freq_bands) --max_freq=$(max_freq) --elevations=$(elevations) --mean_subtracted_map=$(mean_subtracted_map) --ear=$(ear) --normalization_type=$(normalization_type) --sigma_smoothing=$(sigma_smoothing) --sigma_gauss_norm=$(sigma_gauss_norm) $(clean)
+		$(PYTHON_INTERPRETER) src/models/all_participants_localization_exp/train_network.py --model_name='all_participants' --exp_name=$(exp_name) --azimuth=$(azimuth) --snr=$(snr) --freq_bands=$(freq_bands) --max_freq=$(max_freq) --elevations=$(elevations) --mean_subtracted_map=$(mean_subtracted_map) --ear=$(ear) --normalization_type=$(normalization_type) --sigma_smoothing=$(sigma_smoothing) --sigma_gauss_norm=$(sigma_gauss_norm) $(steady_state) $(clean)
+		$(PYTHON_INTERPRETER) src/models/all_participants_localization_exp/localize_sounds.py --model_name='all_participants' --exp_name=$(exp_name) --azimuth=$(azimuth) --snr=$(snr) --freq_bands=$(freq_bands) --max_freq=$(max_freq) --elevations=$(elevations) --mean_subtracted_map=$(mean_subtracted_map) --ear=$(ear) --normalization_type=$(normalization_type) --sigma_smoothing=$(sigma_smoothing) --sigma_gauss_norm=$(sigma_gauss_norm) $(steady_state) $(clean)
 		# visualization
 ifeq ($(visualization_type),regression)
 	$(PYTHON_INTERPRETER) src/visualization/all_participants/visualize_regression_values.py --save_figs=$(save_figs) --save_type=$(save_type) --model_name='all_participants' --exp_name=$(exp_name) --azimuth=$(azimuth)  --snr=$(snr) --freq_bands=$(freq_bands) --max_freq=$(max_freq) --elevations=$(elevations) --mean_subtracted_map=$(mean_subtracted_map) --ear=$(ear) --normalization_type=$(normalization_type) --sigma_smoothing=$(sigma_smoothing) --sigma_gauss_norm=$(sigma_gauss_norm)
@@ -165,7 +166,7 @@ snr_exp:
 
 
 # run all models and visualizations
-all: 	single_participant all_participants different_learned_maps hrtf_comparison hrtf_creation parameter_sweep map_learning snr_exp 
+all: 	single_participant all_participants different_learned_maps hrtf_comparison hrtf_creation parameter_sweep map_learning snr_exp
 
 
 
