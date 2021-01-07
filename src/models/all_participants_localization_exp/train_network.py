@@ -57,8 +57,8 @@ def main(model_name='train_network_single_participant', exp_name='single_partici
                                     154, 155, 156, 158, 162,
                                     163, 165])
 
-    participant_numbers = np.array([1, 2, 3, 8, 9, 10, 11,
-                                    12, 15, 17, 18, 19])
+    # participant_numbers = np.array([1, 2, 3, 8, 9, 10, 11,
+    #                                 12, 15, 17, 18, 19])
 
     elevations = np.arange(0, elevations, 1)
     ########################################################################

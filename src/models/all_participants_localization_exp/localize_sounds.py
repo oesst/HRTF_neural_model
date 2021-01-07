@@ -57,8 +57,8 @@ def main(model_name='localize_all_participant', exp_name='all_participants_defau
                                     154, 155, 156, 158, 162,
                                     163, 165])
 
-    participant_numbers = np.array([1, 2, 3, 8, 9, 10, 11,
-                                    12, 15, 17, 18, 19])
+    # participant_numbers = np.array([1, 2, 3, 8, 9, 10, 11,
+    #                                 12, 15, 17, 18, 19])
 
     elevations = np.arange(0, elevations, 1)
     ########################################################################
@@ -120,9 +120,10 @@ def main(model_name='localize_all_participant', exp_name='all_participants_defau
 
             # normalize weights
             net.w = net.normalize_weights(w)
+            # net.w_sounds_i = w_sounds_i
+            # net.w_sounds_c = w_sounds_c
             net.w_sounds_i = w_sounds_i
-            net.w_sounds_c = w_sounds_c
-
+            net.w_sounds_c = w_sounds_c 
             ############## MONAURAL #################
             # walk over sounds
             for sound, _ in enumerate(SOUND_FILES):

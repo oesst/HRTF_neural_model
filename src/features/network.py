@@ -2,8 +2,8 @@ from scipy.ndimage import gaussian_filter1d, convolve1d
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
-# warnings.filterwarnings('error')
-# np.random.seed(0)
+warnings.filterwarnings('error')
+np.random.seed(0)
 
 
 class Network():
@@ -212,9 +212,9 @@ class Network():
         # beta defines the upper limit of the membrane potential
         beta = 2
         # gamma defines the subtractive influence of the inhibitory input
-        gamma = 1.0
+        gamma = 0.75
         # kappa defines the divisive influence of the inhibitory input
-        kappa = 1.0
+        kappa = 0.0
 
         # calculate the change of r_Alearn
     #     d_r  = -alpha  * r * excitatory_in  + (beta -r ) * excitatory_in  - (gamma  + kappa  * r ) * inhibitory_in
@@ -252,14 +252,22 @@ class Network():
         gamma = 0
         # kappa defines the divisive influence of the inhibitory input
         kappa = 1
+
+        # check if anywhere the same entries are zero, if so add an epsilon
+        tmp = np.where(np.logical_not(np.logical_or(excitatory_in, inhibitory_in)))
+        if len(tmp[0]) > 0:
+            print(tmp)
+        excitatory_in[tmp[0]] += 0.000000000000000000001
+        inhibitory_in[tmp[0]] += 0.000000000000000000001
+
         try:
-        # calculate the change of r_Alearn
+            # calculate the change of r_Alearn
             if self.steady_state:
                 d_r = (beta * excitatory_in - gamma * inhibitory_in) / (alpha * excitatory_in + excitatory_in + kappa * inhibitory_in)
             else:
                 d_r = -alpha * r * excitatory_in + (beta - r) * excitatory_in - (gamma + kappa * r) * inhibitory_in
         except:
-            print(excitatory_in,inhibitory_in)
+            print(excitatory_in, inhibitory_in)
 
         return d_r / self.tau
 

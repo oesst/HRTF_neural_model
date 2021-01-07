@@ -66,7 +66,7 @@ def main(save_figs=False, save_type='svg', model_name='single_participant', exp_
             logger.info('Reading model data from file')
             [localization_results_binaural, localization_results_monaural, q_ele_all, r_ipsi_all] = pickle.load(f)
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(20, 5))
 
         axes = fig.subplots(1, 4, squeeze=False, sharex=False, sharey=False)
 
